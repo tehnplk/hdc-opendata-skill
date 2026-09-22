@@ -1,0 +1,10 @@
+{
+  "name": "hdc-opendata-skill",
+  "version": "1.0.0",
+  "description": "Claude Code skill: ดึงรายงานจาก HDC / MOPH Open Data API (opendata.moph.go.th)",
+  "bin": { "hdc-opendata-skill": "install.mjs" },
+  "files": ["install.mjs", ".claude/skills/hdc-opendata"],
+  "engines": { "node": ">=18" },
+  "license": "MIT",
+  "type": "module"
+}
