@@ -1,6 +1,6 @@
 # HDC Open Data Skill
 
-Skill สำหรับ [Claude Code](https://claude.com/claude-code) ดึงรายงานจาก **HDC / MOPH Open Data API** (`opendata.moph.go.th`)
+Skill สำหรับ [Claude Code](https://claude.com/claude-code) และ Codex ดึงรายงานจาก **HDC / MOPH Open Data API** (`opendata.moph.go.th`)
 ประมาณ 970 รายงาน 50+ หมวด เช่น คัดกรองความดัน เบาหวาน ANC EPI ทันตกรรม KPI ตัวชี้วัด
 
 สั่งเป็นภาษาไทยในหน้าต่าง Claude Code ได้เลย เช่น
@@ -44,72 +44,71 @@ node -v
 
 ---
 
-## 2. ติดตั้ง Skill
+## 2. ติดตั้ง Skill แบบ global
 
-เปิด Command Prompt / Terminal แล้วสั่ง
-
-```bash
-npx skills add tehnplk/hdc-opendata-skill
-```
-
-ครั้งแรกจะถามว่า `Ok to proceed? (y)` ให้ตอบ `y` แล้วเลือกตามที่ถาม
-
-- **เลือก agent** → `claude-code`
-- **เลือกที่ติดตั้ง** → `Global` ถ้าอยากใช้ได้ทุกโปรเจกต์ (แนะนำ) หรือ `Project` ถ้าเอาเฉพาะโฟลเดอร์ปัจจุบัน
-
-ไม่อยากตอบคำถามทีละข้อ สั่งรวดเดียวได้
+ดาวน์โหลด [ZIP ของโปรเจกต์](https://github.com/tehnplk/hdc-opendata-skill/archive/refs/heads/main.zip) แล้วแตกไฟล์ เปิด Terminal ในโฟลเดอร์ที่มี `install.mjs` จากนั้นรัน
 
 ```bash
-npx skills add tehnplk/hdc-opendata-skill -a claude-code -g -y
+node install.mjs -g
 ```
+
+ตัวติดตั้งของโปรเจกต์จะคัดลอก skill ลง **ทั้ง 3 ตำแหน่งในโฟลเดอร์ผู้ใช้** เพื่อใช้ได้ทุกโปรเจกต์:
+
+| สำหรับ | Windows | macOS / Linux |
+| --- | --- | --- |
+| Claude Code | `%USERPROFILE%\.claude\skills\hdc-opendata` | `~/.claude/skills/hdc-opendata` |
+| Agents | `%USERPROFILE%\.agents\skills\hdc-opendata` | `~/.agents/skills/hdc-opendata` |
+| Codex | `%USERPROFILE%\.codex\skills\hdc-opendata` | `~/.codex/skills/hdc-opendata` |
+
+ใช้ชื่อ `.agents` (มี s) ตัวติดตั้งไม่คัดลอกโฟลเดอร์ `artifacts` ไปด้วย ไฟล์รายงานต้องอยู่ใน `artifacts/` ของ workspace ที่ใช้งาน
 
 ### ตรวจสอบว่าติดตั้งสำเร็จ
 
-```bash
-# Windows
-dir %USERPROFILE%\.claude\skills\hdc-opendata
+ตัวติดตั้งต้องแสดง `ติดตั้งแล้ว` ครบ 3 พาธ แต่ละพาธต้องมี `SKILL.md`, `scripts` และ `data`
 
-# macOS / Linux
-ls ~/.claude/skills/hdc-opendata
+```powershell
+# Windows PowerShell
+Get-Item "$env:USERPROFILE/.claude/skills/hdc-opendata/SKILL.md", "$env:USERPROFILE/.agents/skills/hdc-opendata/SKILL.md", "$env:USERPROFILE/.codex/skills/hdc-opendata/SKILL.md"
 ```
 
-ต้องเห็นไฟล์ `SKILL.md` กับโฟลเดอร์ `scripts` และ `data`
+```bash
+# macOS / Linux
+ls ~/.claude/skills/hdc-opendata/SKILL.md ~/.agents/skills/hdc-opendata/SKILL.md ~/.codex/skills/hdc-opendata/SKILL.md
+```
 
-จากนั้น **ปิด Claude Code แล้วเปิดใหม่** (ไม่เปิดใหม่ skill จะยังไม่ถูกโหลด) แล้วลองพิมพ์
+จากนั้นเปิด Claude Code หรือ Codex ใหม่ แล้วลองสั่ง “รายการรายงานแพทย์แผนไทย”
 
-> รายการรายงานแพทย์แผนไทย
+### ติดตั้งเฉพาะโปรเจกต์
 
-ถ้า Claude ตอบกลับมาเป็นรายชื่อรายงาน = ใช้งานได้แล้ว
+เปิด Terminal ใน workspace ปลายทาง แล้วเรียก `install.mjs` ด้วยพาธเต็มโดยไม่ใส่ `-g`:
 
-### ถ้า skill ไม่ขึ้น
+```bash
+node "<พาธโฟลเดอร์ที่แตก ZIP>/install.mjs"
+```
 
-บางเวอร์ชันของตัวติดตั้งจะวางไฟล์ไว้ที่ `.agents/skills/` แทน ทำให้ Claude Code มองไม่เห็น
-เช็คด้วย `ls ~/.agents/skills/hdc-opendata` ถ้าเจอที่นั่น ให้ก๊อปโฟลเดอร์ทั้งอันไปไว้ที่ `~/.claude/skills/` แล้วเปิด Claude Code ใหม่
+โหมดนี้ติดตั้งเฉพาะ `<workspace>/.claude/skills/hdc-opendata` ตามพฤติกรรมเดิม
 
-### วิธีติดตั้งแบบไม่ใช้ npx
+### ใช้ตัวติดตั้ง Skills CLI
 
-เครื่องที่สั่ง `npx` ไม่ได้ ให้ทำมือ
+```bash
+npx skills add tehnplk/hdc-opendata-skill --skill hdc-opendata -a claude-code codex -g -y
+```
 
-1. โหลด ZIP จาก <https://github.com/tehnplk/hdc-opendata-skill/archive/refs/heads/main.zip>
-2. แตกไฟล์ออกมา
-3. ก๊อปโฟลเดอร์ `.claude/skills/hdc-opendata` ทั้งอัน ไปวางที่
-   - Windows: `%USERPROFILE%\.claude\skills\`
-   - macOS / Linux: `~/.claude/skills/`
-4. ปิด Claude Code แล้วเปิดใหม่
-
----
+คำสั่งนี้ใช้ตัวติดตั้งภายนอก ซึ่งเป็นผู้เลือกตำแหน่งและวิธีเชื่อมโยง skill หากต้องการให้มีไฟล์ครบทั้ง 3 ตำแหน่งตามตาราง ให้ใช้ `node install.mjs -g` ด้านบน
 
 ## อัปเดตเป็นเวอร์ชันใหม่
 
+ดาวน์โหลด ZIP ล่าสุดแล้วรันจากโฟลเดอร์ที่แตกไฟล์:
+
 ```bash
-npx skills add tehnplk/hdc-opendata-skill -a claude-code -g -y
+node install.mjs -g --force
 ```
 
-สั่งซ้ำได้เลย ตัวติดตั้งจะทับของเดิมให้
+จะคัดลอกไฟล์รุ่นใหม่ทับทั้ง 3 ตำแหน่ง หากไม่ใส่ `--force` แล้วพบ skill เดิม ตัวติดตั้งจะหยุดก่อนเริ่มคัดลอก
 
 ## ถอนการติดตั้ง
 
-ลบโฟลเดอร์ `~/.claude/skills/hdc-opendata` ทิ้ง แล้วเปิด Claude Code ใหม่
+ลบเฉพาะโฟลเดอร์ `hdc-opendata` ในแต่ละตำแหน่งตามตาราง แล้วเปิด Claude Code หรือ Codex ใหม่
 
 ---
 
