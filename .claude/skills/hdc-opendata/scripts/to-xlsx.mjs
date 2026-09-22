@@ -4,7 +4,8 @@
 //   node scripts/to-xlsx.mjs data.json ht.xlsx        (ชื่อไฟล์เปล่า -> artifacts/)
 //   node scripts/to-xlsx.mjs --check
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import { dirname } from 'node:path';
+import { outputPath, parseRows } from './output-path.mjs';
 import { deflateRawSync } from 'node:zlib';
 import assert from 'node:assert';
 import { labels } from './get-schema.mjs';
@@ -55,6 +56,9 @@ const sheet = (rows, lab = {}) => {
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetData>${r.join('')}</sheetData></worksheet>`;
 };
 
+const sheetName = name => String(name).replace(/[\x00-\x1F\\/?:*\[\]]/g, '_').slice(0, 31).replace(/^'+|'+$/g, '') || 'data';
+const attr = value => esc(value).replaceAll('"', '&quot;');
+
 const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const xlsx = (rows, name = 'data', lab = {}) => zip([
   ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -62,7 +66,7 @@ const xlsx = (rows, name = 'data', lab = {}) => zip([
   ['_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
   ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${REL}"><sheets><sheet name="${esc(name).slice(0, 31)}" sheetId="1" r:id="rId1"/></sheets></workbook>`],
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${REL}"><sheets><sheet name="${attr(sheetName(name))}" sheetId="1" r:id="rId1"/></sheets></workbook>`],
   ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/worksheet" Target="worksheets/sheet1.xml"/></Relationships>`],
   ['xl/worksheets/sheet1.xml', sheet(rows, lab)],
@@ -88,8 +92,8 @@ if (argv[0] === '--check') {
   const src = arg.find(a => a.endsWith('.json'));
   const table = arg.find(a => /^s_\w+$/.test(a));                  // ใส่ชื่อตาราง -> หัวตารางเป็นคำอธิบายจาก schema
   const o = arg.find(a => a.endsWith('.xlsx')) ?? 'data.xlsx';
-  const out = resolve(/[\\/]/.test(o) ? o : join('artifacts', o));       // ชื่อไฟล์เปล่าๆ ลง artifacts/ เสมอ
-  const rows = JSON.parse(readFileSync(src ?? 0, 'utf8'));
+  const out = outputPath(o);       // ชื่อไฟล์เปล่าๆ ลง artifacts/ เสมอ
+  const rows = parseRows(readFileSync(src ?? 0, 'utf8'));
   if (!rows.length) throw new Error('ไม่มีข้อมูล — เช็ค stderr ของ get-data.mjs ก่อน');
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, xlsx(rows, arg.find(a => a !== table && !/\.(json|xlsx)$/.test(a)) ?? 'data', table ? await labels(table) : {}));

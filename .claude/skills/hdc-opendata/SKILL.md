@@ -12,6 +12,16 @@ API เปิดสาธารณะ ไม่มี token: `https://opendata.m
 **ขออนุมัติผู้ใช้ก่อน ห้ามติดตั้งเงียบ** แล้วค่อย `irm bun.sh/install.ps1|iex` (Windows)
 หรือ `curl -fsSL https://bun.sh/install | bash` (mac/Linux)
 
+## ตำแหน่ง workspace และ artifacts (ข้อบังคับ)
+
+- ไฟล์ผลลัพธ์ที่สร้างทุกชนิด (HTML, XLSX, JSON, CSV, รูปภาพ และไฟล์รายงานชั่วคราว) ต้องอยู่ใน `<WORKSPACE>/artifacts/` เสมอ
+- `<WORKSPACE>` คือโฟลเดอร์โปรเจกต์ของผู้ใช้ที่กำลังทำงานนี้ ให้ระบุพาธเต็มก่อนรันคำสั่ง และใช้เป็นโฟลเดอร์ทำงานตลอด แม้ skill จะติดตั้งอยู่ที่อื่น
+- ห้ามสร้าง `artifacts/` ภายในโฟลเดอร์ติดตั้ง skill ทั้ง `.claude/skills/hdc-opendata/` และโฟลเดอร์ skill แบบ global ห้ามเปลี่ยนโฟลเดอร์ทำงานเข้าไปใน skill เพื่อรันสคริปต์
+- กำหนด `SKILL_DIR` เป็นพาธเต็มของโฟลเดอร์ที่มี `SKILL.md` นี้ ตัวอย่างทั้งหมดด้านล่างต้องรันจาก `<WORKSPACE>` และเรียกสคริปต์ผ่าน `"$SKILL_DIR/scripts/..."` (PowerShell: `$SKILL_DIR = '<พาธเต็มของโฟลเดอร์ skill>'`; Bash: `SKILL_DIR='<พาธเต็มของโฟลเดอร์ skill>'`) ส่วน `data/` ที่มาพร้อม skill หมายถึงไฟล์ตารางอ้างอิงภายใน skill
+- สร้าง `<WORKSPACE>/artifacts/` ก่อนใช้การเปลี่ยนทาง stdout ลงไฟล์ สคริปต์ HTML/XLSX สร้างโฟลเดอร์ผลลัพธ์ให้เอง โดยพาธเริ่มต้น `artifacts/` อ้างอิงจากโฟลเดอร์ทำงาน
+- สคริปต์ HTML/XLSX ปฏิเสธพาธที่ออกนอก `artifacts/` และการใช้โฟลเดอร์ skill เป็น workspace หากตัวเรียกสคริปต์เปลี่ยนโฟลเดอร์ทำงานไม่ได้ ให้กำหนดตัวแปรสภาพแวดล้อม `HDC_WORKSPACE` เป็นพาธเต็มของ workspace ที่ใช้งานจริง
+- ก่อนส่งลิงก์ไฟล์ให้ผู้ใช้ ตรวจสอบว่าพาธเต็มของไฟล์ผลลัพธ์อยู่ภายใน `<WORKSPACE>/artifacts/`
+
 ## ขั้นตอน
 
 ดึงรายงานจาก API ล้วน ไม่มีการต่อฐานข้อมูล เดินตามลำดับ อย่าข้าม
@@ -21,11 +31,11 @@ API เปิดสาธารณะ ไม่มี token: `https://opendata.m
 **1. หาตาราง — `get-category.mjs`** ค้นจาก `data/reports.csv` ที่ทำไว้ล่วงหน้า (API ไม่มี search endpoint)
 
 ```bash
-node scripts/get-category.mjs search คัดกรอง ความดัน   # AND ทุกคำ -> source_table,report_name,category
-node scripts/get-category.mjs                          # ลิสต์หมวดทั้งหมด + สรุปจำนวนสดจาก API
-node scripts/get-category.mjs <cat_id>                 # ลิสต์รายงานในหมวด
-node scripts/get-category.mjs build                    # สร้าง data/reports.csv ใหม่ (~30s)
-node scripts/get-category.mjs url s_epi_p1_6            # URL รายงานบน HDC (default hdc.moph.go.th/plk, เปลี่ยนด้วย env HDC_BASE)
+node "$SKILL_DIR/scripts/get-category.mjs" search คัดกรอง ความดัน   # AND ทุกคำ -> source_table,report_name,category
+node "$SKILL_DIR/scripts/get-category.mjs"                          # ลิสต์หมวดทั้งหมด + สรุปจำนวนสดจาก API
+node "$SKILL_DIR/scripts/get-category.mjs" <cat_id>                 # ลิสต์รายงานในหมวด
+node "$SKILL_DIR/scripts/get-category.mjs" build                    # สร้าง data/reports.csv ใหม่ (~30s)
+node "$SKILL_DIR/scripts/get-category.mjs" url s_epi_p1_6            # URL รายงานบน HDC (default hdc.moph.go.th/plk, เปลี่ยนด้วย env HDC_BASE)
 ```
 
 ถ้าได้หลายตาราง **เอารายชื่อมาถามผู้ใช้ก่อน อย่าเดา** — ชื่อคล้ายกันแต่นิยามคนละเรื่อง
@@ -35,7 +45,7 @@ node scripts/get-category.mjs url s_epi_p1_6            # URL รายงาน
 คำอธิบายที่ได้คือหัวตารางของขั้น 4/5 ด้วย — ส่งชื่อตารางไปให้สคริปต์ แล้วมันไปดึง schema เอง
 
 ```bash
-node scripts/get-schema.mjs s_ht_screen_pop_age
+node "$SKILL_DIR/scripts/get-schema.mjs" s_ht_screen_pop_age
 ```
 
 **3. ดึงข้อมูล — `get-data.mjs`** ปีงบประมาณไทย (≥2560) + จังหวัด (ชื่อไทยหรือรหัส) วน offset ให้ครบอัตโนมัติ
@@ -43,22 +53,22 @@ node scripts/get-schema.mjs s_ht_screen_pop_age
 **ผู้ใช้ไม่บอกปี/จังหวัด → ไม่ต้องถาม** ละไว้ได้เลย default = ปีงบปัจจุบัน + พิษณุโลก (65)
 
 ```bash
-node scripts/get-data.mjs s_ht_screen_pop_age                > data.json  # = ปีงบนี้ + พิษณุโลก
-node scripts/get-data.mjs s_ht_screen_pop_age csv            > data.csv   # ข้ามปี/จังหวัดไปสั่ง csv ได้เลย
-node scripts/get-data.mjs s_ht_screen_pop_age 2568 พิษณุโลก > data.json
-node scripts/get-data.mjs s_ht_screen_pop_age 2568 65 csv   > data.csv   # แปลง csv ฝั่งเรา ไม่ใช่ type:csv ของ API
+node "$SKILL_DIR/scripts/get-data.mjs" s_ht_screen_pop_age                > artifacts/data.json  # = ปีงบนี้ + พิษณุโลก
+node "$SKILL_DIR/scripts/get-data.mjs" s_ht_screen_pop_age csv            > artifacts/data.csv   # ข้ามปี/จังหวัดไปสั่ง csv ได้เลย
+node "$SKILL_DIR/scripts/get-data.mjs" s_ht_screen_pop_age 2568 พิษณุโลก > artifacts/data.json
+node "$SKILL_DIR/scripts/get-data.mjs" s_ht_screen_pop_age 2568 65 csv   > artifacts/data.csv   # แปลง csv ฝั่งเรา ไม่ใช่ type:csv ของ API
 ```
 
 **4. นำเสนอผู้ใช้ — `make-report.mjs`** เขียน HTML (ตาราง sort/กรองได้ + กราฟแท่ง Chart.js จาก CDN) แล้วเปิด Chrome ให้เอง
 
 **ทำ HTML เฉพาะเมื่อผู้ใช้สั่ง** (ขอรายงาน/dashboard/หน้าเว็บ/กราฟ/"เปิดให้ดู") ไม่สั่ง = ตอบในแชท อย่าสร้างไฟล์เอง
 ถ้าข้อมูลยาวเกินพ่นลงแชท ให้สรุปแล้วเสนอ 1 บรรทัดว่า **จะแสดงเป็น dashboard ไหม** (อย่าถามว่า "ทำ HTML ให้ไหม" — ผู้ใช้ไม่ได้สนใจว่าเป็นไฟล์อะไร)
-**ไฟล์ที่สร้างทุกชิ้นลง `artifacts/` เสมอ** (สคริปต์สร้างโฟลเดอร์ให้เอง) อย่าทิ้งไว้ที่ root ของโปรเจกต์
+**ตำแหน่งไฟล์ให้ทำตามหัวข้อ ตำแหน่ง workspace และ artifacts ด้านบน**
 
 ```bash
-node scripts/get-data.mjs s_ht_screen | node scripts/make-report.mjs s_ht_screen "คัดกรองความดัน · พิษณุโลก · ปีงบ 2569"
-node scripts/make-report.mjs s_ht_screen data.json ht.html "ชื่อรายงาน" --no-open   # -> artifacts/ht.html ไม่เปิด Chrome
-node scripts/get-data.mjs s_ht_screen csv > artifacts/ht.csv            # json/csv ดิบก็ลง artifacts/ เหมือนกัน
+node "$SKILL_DIR/scripts/get-data.mjs" s_ht_screen | node "$SKILL_DIR/scripts/make-report.mjs" s_ht_screen "คัดกรองความดัน · พิษณุโลก · ปีงบ 2569"
+node "$SKILL_DIR/scripts/make-report.mjs" s_ht_screen artifacts/data.json ht.html "ชื่อรายงาน" --no-open   # -> artifacts/ht.html ไม่เปิด Chrome
+node "$SKILL_DIR/scripts/get-data.mjs" s_ht_screen csv > artifacts/ht.csv            # json/csv ดิบก็ลง artifacts/ เหมือนกัน
 ```
 
 - รวมรายอำเภอให้อัตโนมัติจาก `areacode` 4 หลักแรก (กราฟเป็นระดับอำเภอ ตารางยังเป็นราย hospcode)
@@ -74,7 +84,7 @@ node scripts/get-data.mjs s_ht_screen csv > artifacts/ht.csv            # json/c
 ที่ไม่มี python ไม่มีเน็ต ลง lib ไม่ได้ อะไรที่ต้องติดตั้งก่อน = พังที่ปลายทาง
 
 ```bash
-node scripts/get-data.mjs s_ht_screen | node scripts/to-xlsx.mjs s_ht_screen ht.xlsx "ชื่อชีต"   # -> artifacts/ht.xlsx
+node "$SKILL_DIR/scripts/get-data.mjs" s_ht_screen | node "$SKILL_DIR/scripts/to-xlsx.mjs" s_ht_screen ht.xlsx "ชื่อชีต"   # -> artifacts/ht.xlsx
 ```
 
 - **รหัสถูกเขียนเป็นข้อความเสมอ** (`inlineStr`) — นี่คือเหตุผลเดียวที่ต้องใช้ xlsx แทน csv
@@ -99,5 +109,5 @@ node scripts/get-data.mjs s_ht_screen | node scripts/to-xlsx.mjs s_ht_screen ht.
 - **`b_year` คือปีงบประมาณ** (ต.ค.–ก.ย.) ไม่ใช่ปีปฏิทิน
 - **ถ้าขึ้น `!` บน stderr อย่าเงียบ** — `ไม่มีข้อมูล` = ปี/จังหวัดผิด หรือรายงานยังไม่เปิดผ่าน API, `total ไม่ตรง` = ข้อมูลไม่ครบ ห้ามเอาไปสรุป
 - **ค่า 0 ไม่ได้แปลว่าไม่มีข้อมูล** — อาจเป็นหน่วยบริการที่ยังไม่ส่ง ดู `date_com` ประกอบ
-- search ไม่เจอทั้งที่ควรเจอ = index เก่า -> `node scripts/get-category.mjs build`
-- self-check: `for f in get-data make-report to-xlsx; do node scripts/$f.mjs --check; done`
+- search ไม่เจอทั้งที่ควรเจอ = index เก่า -> `node "$SKILL_DIR/scripts/get-category.mjs" build`
+- self-check: `for f in get-data make-report to-xlsx; do node "$SKILL_DIR/scripts/$f.mjs" --check; done`

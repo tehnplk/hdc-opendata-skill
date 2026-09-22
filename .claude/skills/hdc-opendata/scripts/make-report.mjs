@@ -4,7 +4,8 @@
 //   node scripts/make-report.mjs s_ht_screen data.json out.html "ชื่อรายงาน"   (ชื่อไฟล์เปล่า -> artifacts/)
 //   node scripts/make-report.mjs --check              (--no-open = ไม่เปิด Chrome)
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
+import { dirname } from 'node:path';
+import { outputPath, parseRows } from './output-path.mjs';
 import { execFile } from 'node:child_process';
 import assert from 'node:assert';
 import { labels } from './get-schema.mjs';
@@ -40,7 +41,7 @@ const numCols = rows => Object.keys(rows[0] ?? {}).filter(k =>
 const byAmphoe = (rows, cols) => {
   const g = {};
   for (const r of rows) {
-    const k = String(r.areacode ?? r.hospcode ?? 'รวม').slice(0, 4);
+    const k = (/^\d{8}$/.test(String(r.areacode)) ? String(r.areacode).slice(0, 4) : 'ไม่ทราบอำเภอ');
     g[k] ??= Object.fromEntries(cols.map(c => [c, 0]));
     for (const c of cols) g[k][c] += r[c] || 0;
   }
@@ -88,7 +89,7 @@ const rows=${embed(rows)}, cols=${embed(cols)}, nm=${embed(nm)}, lab=${embed(lab
 const agg=${embed(byAmphoe(rows, cols))};
 const $=s=>document.querySelector(s), keys=Object.keys(rows[0]||{});
 const css=v=>getComputedStyle(document.body).getPropertyValue(v).trim();
-$('#sub').textContent=rows.length.toLocaleString()+' แถว · '+Object.keys(agg).length+' อำเภอ · '+keys.length+' คอลัมน์';
+$('#sub').textContent=rows.length.toLocaleString()+' แถว · '+Object.keys(agg).length+' กลุ่มพื้นที่ · '+keys.length+' คอลัมน์';
 
 // --- กราฟ: ซีรีส์เดียว -> ไม่ต้องมี legend (หัวข้อบอกอยู่แล้ว) ---
 $('#m').innerHTML=cols.map(c=>'<option value=\"'+c+'\"></option>').join('');
@@ -137,7 +138,7 @@ if (argv[0] === '--check') {
   assert.deepEqual(numCols([{ n: 1 }, { n: null }]), ['n']);              // null ปนได้ ถ้ามีเลขจริง
   assert.deepEqual(numCols([]), []);
   assert.deepEqual(byAmphoe(r, ['a']), { 6501: { a: 1 }, 6502: { a: 2 } });
-  assert.deepEqual(byAmphoe([{ hospcode: '07574', a: 5 }], ['a']), { '0757': { a: 5 } });
+  assert.deepEqual(byAmphoe([{ hospcode: '07574', a: 5 }], ['a']), { 'ไม่ทราบอำเภอ': { a: 5 } });
   assert.equal(embed(['</script>']), '["\\u003c/script>"]');              // ปิด tag กลางคันไม่ได้
   assert.ok(html([{ areacode: '65010101', target: 1 }], 'x').includes('<canvas'));
   assert.equal(areaName('65010101'), 'อ.เมืองพิษณุโลก ต.ในเมือง ม.1');     // ครบ 3 ระดับ
@@ -153,12 +154,12 @@ if (argv[0] === '--check') {
   const arg = argv.filter(a => a !== '--no-open');
   const src = arg.find(a => a.endsWith('.json'));
   const table = arg.find(a => /^s_\w+$/.test(a));                  // ใส่ชื่อตาราง -> หัวตารางเป็นคำอธิบายจาก schema
-  // ชื่อไฟล์เปล่าๆ ลง artifacts/ เสมอ ระบุ path มาเองถึงจะไปที่อื่น
+  // ผลลัพธ์ทุกพาธต้องอยู่ภายใน workspace/artifacts
   const o = arg.find(a => a.endsWith('.html')) ?? 'report.html';
-  const out = resolve(/[\\/]/.test(o) ? o : join('artifacts', o));
+  const out = outputPath(o);
   mkdirSync(dirname(out), { recursive: true });
   const title = arg.find(a => a !== table && !/\.(json|html)$/.test(a)) ?? 'HDC report';
-  const rows = JSON.parse(readFileSync(src ?? 0, 'utf8'));                // ไม่ระบุไฟล์ -> อ่าน stdin (fd 0)
+  const rows = parseRows(readFileSync(src ?? 0, 'utf8'));                // ไม่ระบุไฟล์ -> อ่าน stdin (fd 0)
   if (!rows.length) throw new Error('ไม่มีข้อมูล — เช็ค stderr ของ get-data.mjs ก่อน');
   writeFileSync(out, html(rows, title, table ? await labels(table) : {}), 'utf8');
   console.error(`  ${rows.length} แถว -> ${out}`);
